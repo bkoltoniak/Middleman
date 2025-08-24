@@ -1,5 +1,6 @@
 ﻿using Middleman.Exceptions;
 using Middleman.Interfaces;
+using Middleman.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,11 +35,13 @@ namespace Middleman
 
             Type handlerType = typeof(IRequestHandler<>).MakeGenericType(request.GetType());
 
-            await WrapWithMiddleware(async message =>
-            {
-                await ((Task)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), message));
-                return null;
-            })(request);
+            await WrapWithMiddleware(MessageDescriptor.RequestDescriptor(request.GetType()),
+                async message =>
+                {
+                    await ((Task)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), message));
+                    return null;
+                })
+            (request);
         }
 
 
@@ -55,11 +58,13 @@ namespace Middleman
             if (request == null) throw new ArgumentNullException(nameof(request));
 
             Type handlerType = typeof(IRequestHandler<,>).MakeGenericType(request.GetType(), typeof(TResponse));
-            return (TResponse)(await WrapWithMiddleware(async message =>
-            {
-                TResponse response = await ((Task<TResponse>)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), message));
-                return response;
-            })(request))!;
+            return (TResponse)(await WrapWithMiddleware(MessageDescriptor.RequestWithResponseDescriptor(request.GetType()),
+                async message =>
+                {
+                    TResponse response = await ((Task<TResponse>)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), message));
+                    return response;
+                })
+            (request))!;
         }
 
 
@@ -76,12 +81,13 @@ namespace Middleman
             if (@event == null) throw new ArgumentNullException(nameof(@event));
 
             Type handlerType = typeof(IEventHandler<>).MakeGenericType(@event.GetType());
-
-            await WrapWithMiddleware(async message =>
-            {
-                await Task.WhenAll(GetEventHandlers(handlerType).Select(x => (Task)InvokeHandle(handlerType, x, message)));
-                return null;
-            })(@event);
+            await WrapWithMiddleware(MessageDescriptor.EventDescriptor(@event.GetType()),
+                async message =>
+                {
+                    await Task.WhenAll(GetEventHandlers(handlerType).Select(x => (Task)InvokeHandle(handlerType, x, message)));
+                    return null;
+                })
+            (@event);
         }
 
 
@@ -111,12 +117,12 @@ namespace Middleman
             return handler;
         }
 
-        private DispatcherDelegate WrapWithMiddleware(DispatcherDelegate handleDelegate)
+        private DispatcherDelegate WrapWithMiddleware(MessageDescriptor messageDescriptor, DispatcherDelegate handleDelegate)
         {
             foreach (IDispatcherMiddleware middleware in GetMiddleware())
             {
                 DispatcherDelegate next = handleDelegate;
-                handleDelegate = request => middleware.Handle(request, next);
+                handleDelegate = request => middleware.Handle(request, messageDescriptor, next);
             }
 
             return handleDelegate;

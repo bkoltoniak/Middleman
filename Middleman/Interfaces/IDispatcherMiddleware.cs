@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using Middleman.Models;
+using System.Threading.Tasks;
 
 namespace Middleman.Interfaces
 {
@@ -7,6 +8,6 @@ namespace Middleman.Interfaces
 
     public interface IDispatcherMiddleware
     {
-        Task<object?> Handle(object message, DispatcherDelegate next);
+        Task<object?> Handle(object message, MessageDescriptor messageDescriptor, DispatcherDelegate next);
     }
 }

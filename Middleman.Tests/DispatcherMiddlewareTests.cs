@@ -1,5 +1,6 @@
 ﻿
 using Middleman.Interfaces;
+using Middleman.Models;
 using Middleman.Tests.Mocks;
 using Moq;
 using System.Collections.Generic;
@@ -27,8 +28,8 @@ namespace Middleman.Tests
 
             // Assert.
             handler.Verify(x => x.Handle(It.IsAny<FakeRequest>()), Times.Once);
-            middleware.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<DispatcherDelegate>()), Times.Once);
-            middleware2.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<DispatcherDelegate>()), Times.Once);
+            middleware.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<MessageDescriptor>(), It.IsAny<DispatcherDelegate>()), Times.Once);
+            middleware2.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<MessageDescriptor>(), It.IsAny<DispatcherDelegate>()), Times.Once);
             Assert.Equal(
                 new string[] { "Middleware 1", "Middleware 2", "Handler", "Middleware 2", "Middleware 1" },
                 log);
@@ -52,8 +53,8 @@ namespace Middleman.Tests
 
             // Assert.
             handler.Verify(x => x.Handle(It.IsAny<FakeResponseRequest>()), Times.Once);
-            middleware.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<DispatcherDelegate>()), Times.Once);
-            middleware2.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<DispatcherDelegate>()), Times.Once);
+            middleware.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<MessageDescriptor>(), It.IsAny<DispatcherDelegate>()), Times.Once);
+            middleware2.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<MessageDescriptor>(), It.IsAny<DispatcherDelegate>()), Times.Once);
             Assert.Equal(
                 new string[] { "Middleware 1", "Middleware 2", "Handler", "Middleware 2", "Middleware 1" },
                 log);
@@ -77,11 +78,66 @@ namespace Middleman.Tests
 
             // Assert.
             handler.Verify(x => x.Handle(It.IsAny<FakeEvent>()), Times.Once);
-            middleware.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<DispatcherDelegate>()), Times.Once);
-            middleware2.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<DispatcherDelegate>()), Times.Once);
+            middleware.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<MessageDescriptor>(), It.IsAny<DispatcherDelegate>()), Times.Once);
+            middleware2.Verify(x => x.Handle(It.IsAny<object>(), It.IsAny<MessageDescriptor>(), It.IsAny<DispatcherDelegate>()), Times.Once);
             Assert.Equal(
                 new string[] { "Middleware 1", "Middleware 2", "Handler", "Middleware 2", "Middleware 1" },
                 log);
+        }
+
+        [Fact]
+        public async Task Dispatch_WhenHandlingRequest_AndMiddlewareIsRegistered_MiddlewareReceivesCorrectMessageDescriptor()
+        {
+            // Arrange.
+            MockServiceProvider services = new MockServiceProvider();
+            MockRequestHandler handler = new MockRequestHandler();
+            MockDispatcherMiddleware middleware = new MockDispatcherMiddleware();
+            services.SetupMiddleware(middleware);
+            services.SetupRequestHandler(handler);
+            IRequestDispatcher sut = new Dispatcher(services);
+
+            // Act.
+            await sut.Dispatch(new FakeRequest());
+
+            // Assert.
+            middleware.Verify(x => x.Handle(It.IsAny<object>(), MessageDescriptor.Request(typeof(FakeRequest)), It.IsAny<DispatcherDelegate>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Dispatch_WhenHandlingResponseRequest_AndMiddlewareIsRegistered_MiddlewareReceivesCorrectMessageDescriptor()
+        {
+            // Arrange.
+            MockServiceProvider services = new MockServiceProvider();
+            MockResponseRequestHandler handler = new MockResponseRequestHandler();
+            MockDispatcherMiddleware middleware = new MockDispatcherMiddleware();
+            services.SetupMiddleware(middleware);
+            services.SetupRequestHandler(handler);
+            IRequestDispatcher sut = new Dispatcher(services);
+
+            // Act.
+            await sut.Dispatch(new FakeResponseRequest());
+
+            // Assert.
+            middleware.Verify(x => x.Handle(It.IsAny<object>(), MessageDescriptor.RequestWithResponse(typeof(FakeResponseRequest)), It.IsAny<DispatcherDelegate>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task Dispatch_WhenHandlingEventRequest_AndMiddlewareIsRegistered_MiddlewareReceivesCorrectMessageDescriptor()
+        {
+            // Arrange.
+            MockServiceProvider services = new MockServiceProvider();
+            MockEventHandler handler = new MockEventHandler();
+            MockDispatcherMiddleware middleware = new MockDispatcherMiddleware();
+            services.SetupMiddleware(middleware);
+            services.SetupEventHandlers(handler);
+            IEventDispatcher sut = new Dispatcher(services);
+
+            // Act.
+            await sut.Dispatch(new FakeEvent());
+
+            // Assert.
+            middleware.Verify(x => x.Handle(It.IsAny<object>(), MessageDescriptor.EventDescriptor(typeof(FakeEvent)), It.IsAny<DispatcherDelegate>()), Times.Once);
+
         }
     }
 }

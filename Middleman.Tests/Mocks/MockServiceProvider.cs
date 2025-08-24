@@ -23,6 +23,11 @@ namespace Middleman.Tests.Mocks
             Setup(x => x.GetService(typeof(IRequestHandler<TRequest, TResponse>))).Returns(handler);
         }
 
+        public void SetupMiddleware(params IDispatcherMiddleware[] middleware)
+        {
+            Setup(x => x.GetService(typeof(IEnumerable<IDispatcherMiddleware>))).Returns(middleware);
+        }
+
         public object? GetService(Type serviceType)
         {
             return Object.GetService(serviceType);

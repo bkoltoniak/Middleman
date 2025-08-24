@@ -10,7 +10,7 @@ namespace Middleman.Tests
     public class RequestDispatcherTests
     {
         [Fact]
-        public async Task Dispatch_WhenRequestAndNoHandlerRegistered_Throws()
+        public async Task Dispatch_WhenHandlingRequest_AndNoHandlerRegistered_ShouldThrowHandlerNotFoundException()
         {
             // Arrange.
             MockServiceProvider services = new MockServiceProvider();
@@ -25,7 +25,7 @@ namespace Middleman.Tests
         }
 
         [Fact]
-        public async Task Dispatch_WhenResponseRequestAndNoHandlerRegistered_Throws()
+        public async Task Dispatch_WhenHandlingResponseRequest_AndNoHandlerRegistered_ShouldThrowHandlerNotFoundException()
         {
             // Arrange.
             MockServiceProvider services = new MockServiceProvider();
@@ -40,7 +40,7 @@ namespace Middleman.Tests
         }
 
         [Fact]
-        public async Task Dispatch_WhenRequest_RequestHandlerIsCalledOnce()
+        public async Task Dispatch_WhenHandlingRequest_ShouldCallRequestHandlerOnce()
         {
             // Arrange.
             MockServiceProvider services = new MockServiceProvider();
@@ -56,7 +56,7 @@ namespace Middleman.Tests
         }
 
         [Fact]
-        public async Task Dispatch_WhenResponseRequest_RequestHandlerIsCalledOnce()
+        public async Task Dispatch_WhenHandlingResponseRequest_ShouldCallRequestHandlerOnce()
         {
             // Arrange.
             MockServiceProvider services = new MockServiceProvider();

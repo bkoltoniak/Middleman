@@ -23,35 +23,43 @@ namespace Middleman
         /// <summary>
         /// Dispatches the <paramref name="request"/> to be handled by single <see cref="IRequestHandler{TRequest}"/> registered in the <see cref="IServiceProvider"/>.
         /// </summary>
-        /// <param name="request">The request to dispatch.</param>
+        /// <param name="request">The message to dispatch.</param>
         /// <returns>A task representing work of the <see cref="IRequestHandler{TRequest}"</returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="HandlerNotFoundException"></exception>
         /// <exception cref="DispatcherException"></exception>
-        public Task Dispatch(IRequest request)
+        public async Task Dispatch(IRequest request)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
 
             Type handlerType = typeof(IRequestHandler<>).MakeGenericType(request.GetType());
-            return (Task)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), request);
 
+            await WrapWithMiddleware(async message =>
+            {
+                await ((Task)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), message));
+                return null;
+            })(request);
         }
 
 
         /// <summary>
         /// Dispatches the <paramref name="request"/> to be handled by single <see cref="IRequestHandler{TRequest, TResponse}"/> registered in the <see cref="IServiceProvider"/>.
         /// </summary>
-        /// <param name="request">The request to dispatch.</param>
+        /// <param name="request">The message to dispatch.</param>
         /// <returns>A task representing work of the <see cref="IRequestHandler{TRequest, TResponse}"</returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="HandlerNotFoundException"></exception>
         /// <exception cref="DispatcherException"></exception>
-        public Task<TResponse> Dispatch<TResponse>(IRequest<TResponse> request)
+        public async Task<TResponse> Dispatch<TResponse>(IRequest<TResponse> request)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
 
             Type handlerType = typeof(IRequestHandler<,>).MakeGenericType(request.GetType(), typeof(TResponse));
-            return (Task<TResponse>)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), request);
+            return (TResponse)(await WrapWithMiddleware(async message =>
+            {
+                TResponse response = await ((Task<TResponse>)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), message));
+                return response;
+            })(request))!;
         }
 
 
@@ -63,14 +71,17 @@ namespace Middleman
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="HandlerNotFoundException"></exception>
         /// <exception cref="DispatcherException"></exception>
-        public Task Dispatch(IEvent @event)
+        public async Task Dispatch(IEvent @event)
         {
             if (@event == null) throw new ArgumentNullException(nameof(@event));
 
             Type handlerType = typeof(IEventHandler<>).MakeGenericType(@event.GetType());
-            IEnumerable<object> eventHandlers = GetEventHandlers(handlerType);
-            if (!eventHandlers.Any()) return Task.CompletedTask;
-            return Task.WhenAll(eventHandlers.Select(x => (Task)InvokeHandle(handlerType, x, @event)));
+
+            await WrapWithMiddleware(async message =>
+            {
+                await Task.WhenAll(GetEventHandlers(handlerType).Select(x => (Task)InvokeHandle(handlerType, x, message)));
+                return null;
+            })(@event);
         }
 
 
@@ -87,8 +98,7 @@ namespace Middleman
         {
             Type handlersType = typeof(IEnumerable<>).MakeGenericType(handlerType);
             IEnumerable<object>? handlers = (IEnumerable<object>?)_services.GetService(handlersType);
-            if (handlers != null)
-                return handlers;
+            if (handlers != null) return handlers;
 
             return Enumerable.Empty<object>();
         }
@@ -99,6 +109,26 @@ namespace Middleman
             if (handler == null) throw new HandlerNotFoundException(handlerType);
 
             return handler;
+        }
+
+        private DispatcherDelegate WrapWithMiddleware(DispatcherDelegate handleDelegate)
+        {
+            foreach (IDispatcherMiddleware middleware in GetMiddleware())
+            {
+                DispatcherDelegate next = handleDelegate;
+                handleDelegate = request => middleware.Handle(request, next);
+            }
+
+            return handleDelegate;
+        }
+
+        private IEnumerable<IDispatcherMiddleware> GetMiddleware()
+        {
+            Type handlersType = typeof(IEnumerable<>).MakeGenericType(typeof(IDispatcherMiddleware));
+            IEnumerable<IDispatcherMiddleware>? middleware = (IEnumerable<IDispatcherMiddleware>?)_services.GetService(handlersType);
+            if (middleware != null) return middleware.Reverse();
+
+            return Enumerable.Empty<IDispatcherMiddleware>();
         }
     }
 }

@@ -8,7 +8,7 @@ namespace Middleman.Tests
     public class EventDispatcherTests
     {
         [Fact]
-        public async Task Dispatch_WhenNoHandlersRegistered_ShouldNotThrow()
+        public async Task Dispatch_WhenHandlingEvent_AndNoHandlersRegistered_ShouldNotThrow()
         {
             // Arrange.
             MockServiceProvider services = new MockServiceProvider();
@@ -19,7 +19,7 @@ namespace Middleman.Tests
         }
 
         [Fact]
-        public async Task Dispatch_WhenTwoHandlersRegistered_EveryHandlerRetrievesAnEventToHandle()
+        public async Task Dispatch_WhenHandlingEvent_AndTwoHandlersRegistered_ShouldHandleEventInEveryHandler()
         {
             // Arrange.
             MockServiceProvider services = new MockServiceProvider();

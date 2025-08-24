@@ -17,7 +17,7 @@ namespace Middleman.Models
         }
 
         public static MessageDescriptor EventDescriptor(Type messageType) => new MessageDescriptor(messageType, MessageKind.Event, false);
-        public static MessageDescriptor Request(Type messageType) => new MessageDescriptor(messageType, MessageKind.Request, false);
-        public static MessageDescriptor RequestWithResponse(Type messageType) => new MessageDescriptor(messageType, MessageKind.Request, true);
+        public static MessageDescriptor RequestDescriptor(Type messageType) => new MessageDescriptor(messageType, MessageKind.Request, false);
+        public static MessageDescriptor RequestWithResponseDescriptor(Type messageType) => new MessageDescriptor(messageType, MessageKind.Request, true);
     }
 }

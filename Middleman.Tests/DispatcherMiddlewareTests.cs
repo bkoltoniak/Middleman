@@ -61,7 +61,7 @@ namespace Middleman.Tests
         }
 
         [Fact]
-        public async Task Dispatch_WhenHandlingEventRequest_AndTwoMiddlewareRegistered_AndHandlerRegistered_ShouldInvokeMiddlewareAndHandlerInOrder()
+        public async Task Dispatch_WhenHandlingEvent_AndTwoMiddlewareRegistered_AndHandlerRegistered_ShouldInvokeMiddlewareAndHandlerInOrder()
         {
             // Arrange.
             List<string> log = new List<string>();
@@ -100,7 +100,7 @@ namespace Middleman.Tests
             await sut.Dispatch(new FakeRequest());
 
             // Assert.
-            middleware.Verify(x => x.Handle(It.IsAny<object>(), MessageDescriptor.Request(typeof(FakeRequest)), It.IsAny<DispatcherDelegate>()), Times.Once);
+            middleware.Verify(x => x.Handle(It.IsAny<object>(), MessageDescriptor.RequestDescriptor(typeof(FakeRequest)), It.IsAny<DispatcherDelegate>()), Times.Once);
         }
 
         [Fact]
@@ -118,11 +118,11 @@ namespace Middleman.Tests
             await sut.Dispatch(new FakeResponseRequest());
 
             // Assert.
-            middleware.Verify(x => x.Handle(It.IsAny<object>(), MessageDescriptor.RequestWithResponse(typeof(FakeResponseRequest)), It.IsAny<DispatcherDelegate>()), Times.Once);
+            middleware.Verify(x => x.Handle(It.IsAny<object>(), MessageDescriptor.RequestWithResponseDescriptor(typeof(FakeResponseRequest)), It.IsAny<DispatcherDelegate>()), Times.Once);
         }
 
         [Fact]
-        public async Task Dispatch_WhenHandlingEventRequest_AndMiddlewareIsRegistered_MiddlewareReceivesCorrectMessageDescriptor()
+        public async Task Dispatch_WhenHandlingEvent_AndMiddlewareIsRegistered_MiddlewareReceivesCorrectMessageDescriptor()
         {
             // Arrange.
             MockServiceProvider services = new MockServiceProvider();

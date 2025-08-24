@@ -35,7 +35,7 @@ namespace Middleman
 
             Type handlerType = typeof(IRequestHandler<>).MakeGenericType(request.GetType());
 
-            await WrapWithMiddleware(MessageDescriptor.Request(request.GetType()),
+            await WrapWithMiddleware(MessageDescriptor.RequestDescriptor(request.GetType()),
                 async message =>
                 {
                     await ((Task)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), message));
@@ -58,7 +58,7 @@ namespace Middleman
             if (request == null) throw new ArgumentNullException(nameof(request));
 
             Type handlerType = typeof(IRequestHandler<,>).MakeGenericType(request.GetType(), typeof(TResponse));
-            return (TResponse)(await WrapWithMiddleware(MessageDescriptor.RequestWithResponse(request.GetType()),
+            return (TResponse)(await WrapWithMiddleware(MessageDescriptor.RequestWithResponseDescriptor(request.GetType()),
                 async message =>
                 {
                     TResponse response = await ((Task<TResponse>)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), message));

@@ -1,0 +1,104 @@
+﻿using Middleman.Exceptions;
+using Middleman.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace Middleman
+{
+    /// <summary>
+    /// Represents a dispatcher that can dispatch requests and events to their respective handlers.
+    /// It is a implementation of the mediator pattern.
+    /// </summary>
+    public class Dispatcher : IDispatcher
+    {
+        private readonly IServiceProvider _services;
+
+        public Dispatcher(IServiceProvider services)
+        {
+            _services = services;
+        }
+
+        /// <summary>
+        /// Dispatches the <paramref name="request"/> to be handled by single <see cref="IRequestHandler{TRequest}"/> registered in the <see cref="IServiceProvider"/>.
+        /// </summary>
+        /// <param name="request">The request to dispatch.</param>
+        /// <returns>A task representing work of the <see cref="IRequestHandler{TRequest}"</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="HandlerNotFoundException"></exception>
+        /// <exception cref="DispatcherException"></exception>
+        public Task Dispatch(IRequest request)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            Type handlerType = typeof(IRequestHandler<>).MakeGenericType(request.GetType());
+            return (Task)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), request);
+
+        }
+
+
+        /// <summary>
+        /// Dispatches the <paramref name="request"/> to be handled by single <see cref="IRequestHandler{TRequest, TResponse}"/> registered in the <see cref="IServiceProvider"/>.
+        /// </summary>
+        /// <param name="request">The request to dispatch.</param>
+        /// <returns>A task representing work of the <see cref="IRequestHandler{TRequest, TResponse}"</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="HandlerNotFoundException"></exception>
+        /// <exception cref="DispatcherException"></exception>
+        public Task<TResponse> Dispatch<TResponse>(IRequest<TResponse> request)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            Type handlerType = typeof(IRequestHandler<,>).MakeGenericType(request.GetType(), typeof(TResponse));
+            return (Task<TResponse>)InvokeHandle(handlerType, GetRequestHandlerOrThrow(handlerType), request);
+        }
+
+
+        /// <summary>
+        /// Dispatches the <paramref name="event"/> that can be handled by zero or many <see cref="IEventHandler{TEvent}"/> registered in the <see cref="IServiceProvider"/>.
+        /// </summary>
+        /// <param name="event">The event to dispatch.</param>
+        /// <returns>A task representing work of the all the <see cref="IEventHandler{TEvent}"/> that handle the event.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="HandlerNotFoundException"></exception>
+        /// <exception cref="DispatcherException"></exception>
+        public Task Dispatch(IEvent @event)
+        {
+            if (@event == null) throw new ArgumentNullException(nameof(@event));
+
+            Type handlerType = typeof(IEventHandler<>).MakeGenericType(@event.GetType());
+            IEnumerable<object> eventHandlers = GetEventHandlers(handlerType);
+            if (!eventHandlers.Any()) return Task.CompletedTask;
+            return Task.WhenAll(eventHandlers.Select(x => (Task)InvokeHandle(handlerType, x, @event)));
+        }
+
+
+        private object InvokeHandle(Type handlerType, object handler, object parameter)
+        {
+            var method = handlerType.GetMethod("Handle", new[] { parameter.GetType() });
+            if (method == null)
+                throw new DispatcherException($"Could not resolve a Handle({parameter.GetType().Name}) method in the handler type.");
+
+            return method.Invoke(handler, new object[] { parameter })!;
+        }
+
+        private IEnumerable<object> GetEventHandlers(Type handlerType)
+        {
+            Type handlersType = typeof(IEnumerable<>).MakeGenericType(handlerType);
+            IEnumerable<object>? handlers = (IEnumerable<object>?)_services.GetService(handlersType);
+            if (handlers != null)
+                return handlers;
+
+            return Enumerable.Empty<object>();
+        }
+
+        private object GetRequestHandlerOrThrow(Type handlerType)
+        {
+            object? handler = _services.GetService(handlerType);
+            if (handler == null) throw new HandlerNotFoundException(handlerType);
+
+            return handler;
+        }
+    }
+}
